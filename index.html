@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Chat Board - Modern AI Assistant</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              500: '#0284c7',
+              600: '#0369a1',
+              700: '#075985',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Marked.js for Markdown -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <!-- Highlight.js for Syntax Highlighting -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="bg-slate-950 text-slate-100 h-screen flex overflow-hidden font-sans antialiased selection:bg-sky-600 selection:text-white">
+
+  <!-- Mobile Backdrop -->
+  <div id="sidebar-backdrop" class="fixed inset-0 bg-black/60 z-30 hidden md:hidden"></div>
+
+  <!-- Left Sidebar (Board Navigation & History) -->
+  <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-80 bg-slate-900/95 backdrop-blur-md border-r border-slate-800 flex flex-col transition-transform duration-300 md:static md:translate-x-0 -translate-x-full">
+    
+    <!-- Sidebar Header / Brand -->
+    <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-sky-500/20">
+          <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h1 class="font-bold tracking-tight text-white text-base leading-none">AI Chat Board</h1>
+          <span class="text-[11px] text-sky-400 font-medium">Powered by Gemini</span>
+        </div>
+      </div>
+      <button id="new-chat-btn" class="p-2 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/20 transition flex items-center gap-1.5 text-xs font-semibold" title="New Board Chat">
+        <i data-lucide="plus" class="w-4 h-4"></i>
+        <span>New</span>
+      </button>
+    </div>
+
+    <!-- Search & Board Category Filter -->
+    <div class="p-3 border-b border-slate-800/70 space-y-2.5">
+      <!-- Search Input -->
+      <div class="relative">
+        <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"></i>
+        <input
+          id="search-input"
+          type="text"
+          placeholder="Search chats & boards..."
+          class="w-full bg-slate-950/70 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500 transition"
+        />
+      </div>
+
+      <!-- Category Filter Pills -->
+      <div class="flex gap-1 overflow-x-auto pb-1 scrollbar-none" id="category-pills">
+        <button class="category-pill active px-2.5 py-1 rounded-md text-[11px] font-medium transition bg-sky-500 text-white" data-cat="all">All</button>
+        <button class="category-pill px-2.5 py-1 rounded-md text-[11px] font-medium transition bg-slate-800 text-slate-400 hover:text-white" data-cat="General">General</button>
+        <button class="category-pill px-2.5 py-1 rounded-md text-[11px] font-medium transition bg-slate-800 text-slate-400 hover:text-white" data-cat="Coding">Coding</button>
+        <button class="category-pill px-2.5 py-1 rounded-md text-[11px] font-medium transition bg-slate-800 text-slate-400 hover:text-white" data-cat="Ideas">Ideas</button>
+        <button class="category-pill px-2.5 py-1 rounded-md text-[11px] font-medium transition bg-slate-800 text-slate-400 hover:text-white" data-cat="Writing">Writing</button>
+      </div>
+    </div>
+
+    <!-- Pinned & Saved Chats List -->
+    <div class="flex-1 overflow-y-auto p-3 space-y-1" id="session-list">
+      <!-- Chat history cards rendered here -->
+    </div>
+
+    <!-- Sidebar Footer -->
+    <div class="p-3 border-t border-slate-800/80 space-y-1.5">
+      <button id="open-settings-btn" class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800/80 transition">
+        <div class="flex items-center gap-2.5">
+          <i data-lucide="settings" class="w-4 h-4 text-slate-400"></i>
+          <span>Settings & API Key</span>
+        </div>
+        <span id="api-status-dot" class="w-2 h-2 rounded-full bg-amber-400" title="API Status"></span>
+      </button>
+
+      <div class="flex items-center justify-between px-3 pt-1 text-[11px] text-slate-500">
+        <span id="board-count-text">0 boards saved</span>
+        <button id="clear-all-sessions-btn" class="hover:text-rose-400 transition" title="Clear All History">Clear All</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Chat Board Work Area -->
+  <main class="flex-1 flex flex-col h-full min-w-0 bg-slate-950 relative">
+    
+    <!-- Top Bar -->
+    <header class="h-14 border-b border-slate-800/80 px-4 md:px-6 flex items-center justify-between shrink-0 bg-slate-950/80 backdrop-blur z-10">
+      <div class="flex items-center gap-3 min-w-0">
+        <button id="toggle-sidebar-btn" class="md:hidden p-2 -ml-2 rounded-lg text-slate-400 hover:bg-slate-800 transition">
+          <i data-lucide="menu" class="w-5 h-5"></i>
+        </button>
+        
+        <!-- Active Board Title & Tag -->
+        <div class="flex items-center gap-2 truncate">
+          <h2 id="current-board-title" class="font-semibold text-slate-200 text-sm truncate">New Board Chat</h2>
+          <span id="current-board-badge" class="badge-general text-[10px] px-2 py-0.5 rounded-full font-medium">General</span>
+        </div>
+      </div>
+
+      <!-- Controls: Category tagger, Model dropdown, Export -->
+      <div class="flex items-center gap-2 shrink-0">
+        <!-- Model Selector -->
+        <div class="flex items-center gap-1.5">
+          <i data-lucide="cpu" class="w-3.5 h-3.5 text-slate-400 hidden sm:inline-block"></i>
+          <select id="model-select" class="bg-slate-900 border border-slate-700/80 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-sky-500 transition cursor-pointer">
+            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+            <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+            <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+          </select>
+        </div>
+
+        <!-- Board Category Tag Selector -->
+        <select id="board-category-select" class="bg-slate-900 border border-slate-700/80 text-slate-300 text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:border-sky-500 transition cursor-pointer hidden sm:inline-block">
+          <option value="General">Tag: General</option>
+          <option value="Coding">Tag: Coding</option>
+          <option value="Ideas">Tag: Ideas</option>
+          <option value="Writing">Tag: Writing</option>
+          <option value="Research">Tag: Research</option>
+        </select>
+
+        <!-- Export Chat -->
+        <button id="export-chat-btn" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800 transition" title="Export Board to Markdown">
+          <i data-lucide="download" class="w-4 h-4"></i>
+        </button>
+
+        <!-- Clear Chat -->
+        <button id="clear-chat-btn" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 border border-slate-800 transition" title="Clear Messages">
+          <i data-lucide="trash-2" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Chat Messages Scroll Area -->
+    <div id="chat-messages" class="flex-1 overflow-y-auto px-4 py-6 md:px-12 lg:px-24 space-y-4">
+      
+      <!-- Empty State Board Display -->
+      <div id="empty-state" class="h-full flex flex-col items-center justify-center text-center max-w-2xl mx-auto py-8">
+        
+        <div class="relative mb-5">
+          <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-sky-500 via-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-xl shadow-sky-500/25">
+            <i data-lucide="sparkles" class="w-8 h-8"></i>
+          </div>
+          <span class="absolute -bottom-1 -right-1 flex h-4 w-4">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-4 w-4 bg-sky-500 border-2 border-slate-950"></span>
+          </span>
+        </div>
+
+        <h2 class="text-2xl md:text-3xl font-bold text-white mb-2 tracking-tight">AI Chat Board</h2>
+        <p class="text-slate-400 text-sm mb-8 max-w-md">Enter any question, prompt, or task below. Save your favorite answers, tag boards, and collaborate with Google Gemini.</p>
+
+        <!-- Prompt Cards Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full text-left">
+          
+          <button class="prompt-chip p-4 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-sky-500/50 hover:bg-slate-800/60 transition group text-sm" data-prompt="Design an end-to-end modern web application architecture for an AI platform.">
+            <div class="flex items-center gap-2 mb-1">
+              <i data-lucide="layers" class="w-4 h-4 text-sky-400 group-hover:scale-110 transition-transform"></i>
+              <span class="font-semibold text-slate-200 group-hover:text-sky-300">System Architecture</span>
+            </div>
+            <span class="text-xs text-slate-400">Design scalable full-stack layout</span>
+          </button>
+
+          <button class="prompt-chip p-4 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-emerald-500/50 hover:bg-slate-800/60 transition group text-sm" data-prompt="Write a Python script with FastAPI to create a REST API with validation and Swagger docs.">
+            <div class="flex items-center gap-2 mb-1">
+              <i data-lucide="code" class="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform"></i>
+              <span class="font-semibold text-slate-200 group-hover:text-emerald-300">FastAPI REST Backend</span>
+            </div>
+            <span class="text-xs text-slate-400">Code boilerplate with validation</span>
+          </button>
+
+          <button class="prompt-chip p-4 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-amber-500/50 hover:bg-slate-800/60 transition group text-sm" data-prompt="Brainstorm 5 innovative startup ideas combining AI and productivity boards.">
+            <div class="flex items-center gap-2 mb-1">
+              <i data-lucide="lightbulb" class="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform"></i>
+              <span class="font-semibold text-slate-200 group-hover:text-amber-300">Startup Brainstorming</span>
+            </div>
+            <span class="text-xs text-slate-400">5 creative AI venture ideas</span>
+          </button>
+
+          <button class="prompt-chip p-4 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-purple-500/50 hover:bg-slate-800/60 transition group text-sm" data-prompt="Explain how neural networks learn through backpropagation with clear step-by-step analogies.">
+            <div class="flex items-center gap-2 mb-1">
+              <i data-lucide="book-open" class="w-4 h-4 text-purple-400 group-hover:scale-110 transition-transform"></i>
+              <span class="font-semibold text-slate-200 group-hover:text-purple-300">Deep Learning Explainer</span>
+            </div>
+            <span class="text-xs text-slate-400">Backpropagation simplified</span>
+          </button>
+
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Input Dock Area -->
+    <div class="p-3 md:px-12 lg:px-24 border-t border-slate-800/80 bg-slate-950/90 backdrop-blur">
+      <div class="relative flex flex-col bg-slate-900 border border-slate-700/80 focus-within:border-sky-500 rounded-2xl shadow-2xl transition-all">
+        
+        <!-- Textarea for Question -->
+        <textarea
+          id="user-input"
+          rows="1"
+          placeholder="Ask a question or enter a prompt for your AI board..."
+          class="w-full bg-transparent text-slate-100 text-sm px-4 pt-3.5 pb-2 max-h-48 resize-none focus:outline-none placeholder-slate-500 leading-relaxed"
+        ></textarea>
+
+        <!-- Bottom action bar inside input -->
+        <div class="px-3 pb-2.5 pt-1 flex items-center justify-between text-xs text-slate-400">
+          <div class="flex items-center gap-2">
+            <span class="text-[11px] text-slate-500 hidden sm:inline-block">
+              <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300">Enter</kbd> to send, <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300">Shift + Enter</kbd> for newline
+            </span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <!-- Stop Generating -->
+            <button id="stop-btn" class="hidden px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-medium transition shadow-md shadow-rose-600/20 flex items-center gap-1.5" title="Stop generating">
+              <i data-lucide="square" class="w-3.5 h-3.5 fill-current"></i>
+              <span>Stop</span>
+            </button>
+
+            <!-- Send Button -->
+            <button id="send-btn" class="px-4 py-2 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-semibold transition shadow-md shadow-sky-500/25 flex items-center gap-1.5 disabled:opacity-40" title="Send question">
+              <span>Send</span>
+              <i data-lucide="arrow-up" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- Settings & API Key Modal -->
+  <div id="settings-modal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
+      
+      <div class="flex items-center justify-between mb-5">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center">
+            <i data-lucide="sliders" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-100 text-base">Board Settings</h3>
+            <p class="text-xs text-slate-400">Customize AI parameters and API credentials</p>
+          </div>
+        </div>
+        <button id="close-settings-btn" class="text-slate-400 hover:text-white p-1 rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-4">
+        <!-- API Key Input -->
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+            Google Gemini API Key
+          </label>
+          <div class="relative">
+            <input
+              id="api-key-input"
+              type="password"
+              placeholder="AIzaSy..."
+              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500 placeholder-slate-600 pr-10"
+            />
+            <button id="toggle-key-visibility" type="button" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200">
+              <i data-lucide="eye" class="w-4 h-4"></i>
+            </button>
+          </div>
+          <div class="flex items-center justify-between text-[11px] mt-1.5 text-slate-400">
+            <span>Free API key available from Google AI Studio</span>
+            <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-sky-400 hover:underline flex items-center gap-0.5">
+              Get Key <i data-lucide="external-link" class="w-3 h-3"></i>
+            </a>
+          </div>
+        </div>
+
+        <!-- Temperature Slider -->
+        <div>
+          <div class="flex justify-between items-center mb-1.5">
+            <label class="text-xs font-semibold uppercase tracking-wider text-slate-400">Creativity / Temperature</label>
+            <span id="temp-value" class="text-xs text-sky-400 font-mono font-bold">0.7</span>
+          </div>
+          <input
+            id="temp-slider"
+            type="range"
+            min="0"
+            max="1.5"
+            step="0.1"
+            value="0.7"
+            class="w-full accent-sky-500 bg-slate-800 cursor-pointer"
+          />
+          <div class="flex justify-between text-[10px] text-slate-500 mt-1">
+            <span>Precise (0.0)</span>
+            <span>Balanced (0.7)</span>
+            <span>Creative (1.5)</span>
+          </div>
+        </div>
+
+        <!-- System Prompt & Presets -->
+        <div>
+          <div class="flex justify-between items-center mb-1.5">
+            <label class="text-xs font-semibold uppercase tracking-wider text-slate-400">Persona Presets</label>
+            <div class="flex gap-1" id="preset-buttons">
+              <button type="button" class="preset-btn px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-[10px] rounded text-slate-300" data-preset="general">General</button>
+              <button type="button" class="preset-btn px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-[10px] rounded text-slate-300" data-preset="coder">Developer</button>
+              <button type="button" class="preset-btn px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-[10px] rounded text-slate-300" data-preset="writer">Writer</button>
+            </div>
+          </div>
+          <textarea
+            id="system-prompt-input"
+            rows="3"
+            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500 placeholder-slate-600 resize-none font-mono text-xs"
+            placeholder="Custom instructions for AI Chat Board..."
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="mt-6 flex justify-end gap-2.5">
+        <button id="cancel-settings-btn" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium transition">
+          Cancel
+        </button>
+        <button id="save-settings-btn" class="px-5 py-2 bg-sky-500 hover:bg-sky-400 text-white rounded-lg text-xs font-semibold transition shadow-lg shadow-sky-500/20">
+          Save Settings
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
+
+  <!-- Main JavaScript Controller -->
+  <script src="/static/js/chat.js"></script>
+</body>
+</html>
