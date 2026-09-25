@@ -43,6 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // State Variables
   let sessions = [];
   let currentSessionId = null;
+  const BACKEND_URL = "https://YOUR-BACKEND.onrender.com";
   let isGenerating = false;
   let abortController = null;
   let currentCategoryFilter = "all";
@@ -132,7 +133,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Fetch backend configuration
   async function fetchBackendConfig() {
     try {
-      const res = await fetch("/api/config");
+     const res = await fetch(`${BACKEND_URL}/api/config`);
       if (res.ok) {
         const config = await res.json();
         if (config.has_api_key && !appSettings.apiKey) {
@@ -479,7 +480,7 @@ document.addEventListener("DOMContentLoaded", () => {
     abortController = new AbortController();
 
     try {
-      const response = await fetch("/api/chat/stream", {
+      const response = await fetch(`${BACKEND_URL}/api/chat/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: abortController.signal,
@@ -718,7 +719,7 @@ document.addEventListener("DOMContentLoaded", () => {
       showToast("Settings saved!", "success");
 
       if (newKey) {
-        const valRes = await fetch("/api/validate-key", {
+        const valRes = await fetch(`${BACKEND_URL}/api/validate-key`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ api_key: newKey })
