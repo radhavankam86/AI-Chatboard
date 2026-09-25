@@ -6,7 +6,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // BACKEND URL
   // ============================================================
 
-  const BACKEND_URL = "https://your-real-render-url.onrender.com";
+ const BACKEND_URL = "https://YOUR-ACTUAL-RENDER-URL.onrender.com";
 
 
   // ============================================================
