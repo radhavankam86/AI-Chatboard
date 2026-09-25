@@ -9,8 +9,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import httpx
 
-from app.config import settings, BASE_DIR
-from app.gemini_client import gemini_service
+from config import settings, BASE_DIR
+from gemini_client import gemini_service
 
 # Logging setup
 logging.basicConfig(
@@ -39,8 +39,7 @@ static_path = BASE_DIR / "static"
 if static_path.exists():
     app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
 
-templates_dir = BASE_DIR / "app" / "templates"
-
+templates_dir = BASE_DIR
 
 # Request / Response Schemas
 class Message(BaseModel):
